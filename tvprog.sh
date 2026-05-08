@@ -2,10 +2,10 @@
 
 set -u
 
-# xq-python . epg.xml > epg.json
-epg=epg.json
+# xq-python --xml-force-list 'display-name' . epg.xml > epg.json
+epg=epg_one.json
 
-chanid=$(jq -r --arg channel "$1" '.tv.channel[] | select(.["display-name"] == $channel) | .["@id"]' "$epg")
+chanid=$(jq -r --arg channel "$1" 'first(.tv.channel[] | select(.["display-name"][] | [if type == "object" then .["#text"] end] | any(. == $channel)) | .["@id"])' "$epg")
 if [[ ! $chanid ]]; then
     echo "Channel '$1' is not found!" >&2
     exit 1
