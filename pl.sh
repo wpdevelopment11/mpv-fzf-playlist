@@ -7,7 +7,7 @@ if [[ $err != "success" ]]; then
     [[ "$err" ]] && echo "Error: $err"
     exit 1
 fi
-jq -r ".data[] | (if .title then \"\(.title)\t\" else \"\t\" end) + .filename" <<< $playlist | column -t -s '"\$'\t'"
+jq -r ".data[] | [.title, .filename] | map(values) | @tsv" <<< $playlist | column -t -s '"$'\t'"
 
 fzf --layout=reverse-list \
     --bind "start,ctrl-r:reload:$RELOAD" \
