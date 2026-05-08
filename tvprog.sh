@@ -11,5 +11,4 @@ if [[ ! $chanid ]]; then
     exit 1
 fi
 
-jq --arg chanid "$chanid" 'last(.tv.programme[] | select(.["@channel"] == $chanid and .["@start"] <= (now | strflocaltime("%Y%m%d%H%M%S %z"))))' "$epg"
-jq --arg chanid "$chanid" 'first(.tv.programme[] | select(.["@channel"] == $chanid and .["@start"] > (now | strflocaltime("%Y%m%d%H%M%S %z"))))' "$epg"
+jq --arg chanid "$chanid" '[.tv.programme[] | select(.["@channel"] == $chanid and .["@stop"] >= (now | strflocaltime("%Y%m%d%H%M%S %z")))][:2]' "$epg"
