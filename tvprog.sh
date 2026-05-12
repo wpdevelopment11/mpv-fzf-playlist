@@ -17,4 +17,4 @@ jq -nr \
 | [$ch.name, ($tv.programme[]
     | select(.["@channel"] == $ch.id and .["@stop"] >= (now | strflocaltime("%Y%m%d%H%M%S %z")))
     | [(.title | if type == "object" then .["#text"] end), (.["@start"] | strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M"))])][:3]
-| .[1][1] |= empty | flatten | @tsv' "$epg" <(printf "%s\n" "$@" | jq -R | jq -s)
+| .[1][1] |= empty | flatten | @tsv' "$epg" <(printf "%s\n" "$@" | jq -R | jq -s) | sort -bk1,1 -t $'\t'
