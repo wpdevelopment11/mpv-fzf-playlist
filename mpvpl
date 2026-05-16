@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-epg=epg.json
-mpvsocket=/tmp/mpvsocket
 
 playlist() {
     jq -r '.data | to_entries[] |  [.key, .value.title, .value.filename] | map(values) | @tsv' <<< $playlist \
@@ -13,6 +11,9 @@ channels_in_playlist() {
 }
 
 tvprog() {
+    if [[ -z $epg ]]; then
+        return
+    fi
     query_tvprogs='
     (input | .tv) as $tv
     | (input | .[]) as $channel
@@ -35,6 +36,38 @@ join_tvprog_and_playlist() {
         | awk -F'\t' 'BEGIN{OFS="\t"} {tmp=$1; $1=$2; $2=tmp; print}' | column -t -s $'\t'
 }
 
+print_usage() {
+cat >&2 <<END
+Jump between mpv playlist entries using fzf.
+
+You can optionally pass an epg in xmltv format to see the current tv programs.
+
+Usage: $myname
+       $myname https://example.com/epg.xml.gz
+       $myname /path/to/epg.json
+END
+}
+
+mpvsocket=${IPC_SOCKET:-/tmp/mpvsocket}
+myname=${0##*/}
+
+reload=""
+epg=""
+if [[ $# -eq 1 && ($1 == "--help" || $1 == "-h") ]]; then
+    print_usage
+    exit
+elif [[ $# -ge 1 && $1 == "reload" ]]; then
+    reload=yes
+    if [[ $# -gt 1 ]]; then
+        epg=$2
+    fi
+elif [[ $# -eq 1 ]]; then
+    epg=$1
+elif [[ $# -ne 0 ]]; then
+    print_usage
+    exit 1
+fi
+
 playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
 if [[ $? != 0 ]]; then
     echo "Can't connect to mpv" >&2
@@ -46,13 +79,13 @@ if [[ $err != "success" ]]; then
     exit 1
 fi
 
-if [[ $1 == "reload" ]]; then
+if [[ $reload ]]; then
     join_tvprog_and_playlist
     exit
 fi
 
 fzf --layout=reverse-list --with-nth=2.. \
-    --bind "start,ctrl-r:reload:$0 reload" \
+    --bind "start,ctrl-r:reload:${0@Q} reload ${epg@Q}"  \
     --bind 'enter:execute-silent:socat - '"$mpvsocket"' <<< "{ \"command\": [\"playlist-play-index\", "{1}"] }" > /dev/null'
 
 
