@@ -1,0 +1,96 @@
+#!/bin/bash
+
+set -u
+
+fetch_url() {
+#    echo curl "$@" -fL -o "$epg_temp" -w '%{header_json}' "$url" >&2
+    local resp
+    resp=$(curl "$@" -fL -o "$epg_temp" -w '%{response_code} %{header_json}' "$url")
+    status=$?
+#    if [[ $? != 0 ]]; then
+#        echo "Error while fetching URL: $url" >&2
+#        return 1
+#    fi
+    response_code=${resp%%\ *}
+    headers=${resp#*\ }
+    return $status
+}
+
+epg_to_json() {
+    echo "Converting xmltv to json..." >&2
+    gzip -df < "$epg_temp" | xq-python --xml-force-list display-name . - > "$epg_data"
+}
+
+save_result() {
+    epg_to_json
+    cat <<< "$headers" > "$epg_http_headers"
+}
+
+handle_url() {
+    local url=$1
+
+    local urlhash
+    urlhash=$(sha256sum <<< "$url" | awk '{print $1}')
+    local urldir=$cache_dir/$urlhash
+    mkdir -p "$urldir"
+
+    local epg_temp
+    epg_temp=$(mktemp)
+    trap 'rm -f $epg_temp' RETURN
+
+    local epg_http_headers=$urldir/headers.json
+    local epg_data=$urldir/epg.json
+
+    local headers response_code
+    if [[ ! (-f $epg_http_headers && -f $epg_data) ]]; then
+        if ! fetch_url; then
+            return 2
+        fi
+        save_result
+    else
+        # Check for updates for an already existing epg
+        local etag last_modified
+        etag=$(jq -r '.etag[0] // ""' "$epg_http_headers")
+        last_modified=$(jq -r '.["last-modified"][0] // ""' "$epg_http_headers")
+        echo "Trying to update the epg..." >&2
+        if [[ $etag ]]; then
+            local etag_file
+            etag_file=$(mktemp)
+            trap 'rm -f $epg_temp $etag_file' RETURN
+            cat <<< "$etag" > "$etag_file"
+            fetch_url "--etag-compare" "$etag_file"
+        elif [[ $last_modified ]]; then
+            fetch_url "--time-cond" "$last_modified"
+        else
+            # etag and the last-modified time is not known,
+            # gave up and download the epg again
+            fetch_url
+        fi
+
+        # shellcheck disable=SC2181
+        if [[ $? -ne 0 ]]; then
+            # error in fetch_url
+            return 1
+        fi
+
+        if [[ $response_code -ne 304 ]]; then
+            save_result
+        fi
+    fi
+}
+
+cache_dir=${XDG_CACHE_HOME:-~/.cache}/mpv-fzf-playlist
+
+if [[ ! $1 =~ ^https?:// ]]; then
+    echo "Not a URL: $1" >&2
+    exit 1
+fi
+
+handle_url "$1"
+status=$?
+
+if [[ $status -eq 1 ]]; then
+    echo "error while updating epg" >&2
+elif [[ $status -eq 2 ]]; then
+    echo "error while fetching url" >&2
+fi
