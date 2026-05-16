@@ -7,13 +7,14 @@ playlist() {
 }
 
 channels_in_playlist() {
-    jq '[.data[] | .title | values]' <<< $playlist
+    jq '[.data[] | .title | values]' <<< "$playlist"
 }
 
 tvprog() {
     if [[ -z $epg ]]; then
         return
     fi
+    # shellcheck disable=SC2016
     query_tvprogs='
     (input | .tv) as $tv
     | (input | .[]) as $channel
@@ -69,11 +70,12 @@ elif [[ $# -ne 0 ]]; then
 fi
 
 playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
+# shellcheck disable=SC2181
 if [[ $? != 0 ]]; then
     echo "Can't connect to mpv" >&2
     exit 1
 fi
-err=$(jq -r .error <<< $playlist)
+err=$(jq -r .error <<< "$playlist")
 if [[ $err != "success" ]]; then
     [[ "$err" ]] && echo "mpv error: $err" >&2
     exit 1
