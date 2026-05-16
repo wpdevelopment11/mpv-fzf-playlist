@@ -7,8 +7,14 @@
 # https://opensource.org/licenses/MIT.
 
 playlist() {
-    jq -r '.data | to_entries[] |  [.key, .value.title, .value.filename] | map(values) | @tsv' <<< $playlist \
-        | sort -bk2,2 -t $'\t'
+    local query
+    if [[ -z $epg ]]; then
+        query='.data | to_entries[] | [.key, .value.title, .value.filename] | map(values) | @tsv'
+    else
+        # Don't show an entry filename with an epg, it will clutter the output
+        query='.data | to_entries[] |  [.key, .value.title // ("Error! Entry title is empty.", .value.filename)] | @tsv'
+    fi
+    jq -r "$query" <<< "$playlist" | sort -bk2,2 -t $'\t'
 }
 
 channels_in_playlist() {
