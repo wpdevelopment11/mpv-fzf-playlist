@@ -48,6 +48,81 @@ join_tvprog_and_playlist() {
         | awk -F'\t' 'BEGIN{OFS="\t"} {tmp=$1; $1=$2; $2=tmp; print}' | column -t -s $'\t'
 }
 
+fetch_url() {
+    local resp
+    resp=$(curl "$@" -fL -o "$epg_temp" -w '%{response_code} %{header_json}' "$url")
+    status=$?
+    response_code=${resp%%\ *}
+    headers=${resp#*\ }
+    return $status
+}
+
+epg_to_json() {
+    echo "Converting xmltv to json..." >&2
+    gzip -df < "$epg_temp" | xq-python --xml-force-list display-name . - > "$epg_path"
+}
+
+save_result() {
+    epg_to_json
+    cat <<< "$headers" > "$epg_headers_path"
+}
+
+handle_url() {
+    local url=$1
+
+    local urlhash
+    urlhash=$(sha256sum <<< "$url" | awk '{print $1}')
+    local urldir=$cache_dir/$urlhash
+    mkdir -p "$urldir"
+
+    local epg_temp
+    epg_temp=$(mktemp)
+    trap 'rm -f $epg_temp' RETURN
+
+    local epg_headers_path=$urldir/headers.json
+    local epg_path=$urldir/epg.json
+
+    local headers response_code
+    if [[ ! (-f $epg_headers_path && -f $epg_path) ]]; then
+        if ! fetch_url; then
+            return 2
+        fi
+        save_result
+        epg=$epg_path
+    else
+        # Check for updates for an already existing epg
+        local etag last_modified
+        etag=$(jq -r '.etag[0] // ""' "$epg_headers_path")
+        last_modified=$(jq -r '.["last-modified"][0] // ""' "$epg_headers_path")
+        echo "Trying to update the epg..." >&2
+        if [[ $etag ]]; then
+            local etag_file
+            etag_file=$(mktemp)
+            trap 'rm -f $epg_temp $etag_file' RETURN
+            cat <<< "$etag" > "$etag_file"
+            fetch_url "--etag-compare" "$etag_file"
+        elif [[ $last_modified ]]; then
+            fetch_url "--time-cond" "$last_modified"
+        else
+            # etag and the last-modified time is not known,
+            # gave up and download the epg again
+            fetch_url
+        fi
+
+        epg=$epg_path
+
+        # shellcheck disable=SC2181
+        if [[ $? -ne 0 ]]; then
+            # error in fetch_url
+            return 1
+        fi
+
+        if [[ $response_code -ne 304 ]]; then
+            save_result
+        fi
+    fi
+}
+
 print_usage() {
 cat >&2 <<END
 Jump between mpv playlist entries using fzf.
@@ -60,6 +135,7 @@ Usage: $myname
 END
 }
 
+cache_dir=${XDG_CACHE_HOME:-~/.cache}/mpv-fzf-playlist
 mpvsocket=${IPC_SOCKET:-/tmp/mpvsocket}
 myname=${0##*/}
 
@@ -80,9 +156,21 @@ elif [[ $# -ne 0 ]]; then
     exit 1
 fi
 
+if [[ $epg =~ ^https?:// ]]; then
+    handle_url "$epg"
+    status=$?
+    if [[ $status -eq 1 ]]; then
+        echo "Error while trying to update the epg. Using the old one." >&2
+    elif [[ $status -eq 2 ]]; then
+        echo "Error while fetching url: $epg" >&2
+        # Can't recover from this
+        exit 1
+    fi
+fi
+
 playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
 # shellcheck disable=SC2181
-if [[ $? != 0 ]]; then
+if [[ $? -ne 0 ]]; then
     echo "Can't connect to mpv" >&2
     exit 1
 fi
@@ -100,6 +188,3 @@ fi
 fzf --layout=reverse-list --with-nth=2.. \
     --bind "start,ctrl-r:reload:${0@Q} reload ${epg@Q}"  \
     --bind 'enter:execute-silent:socat - '"$mpvsocket"' <<< "{ \"command\": [\"playlist-play-index\", "{1}"] }" > /dev/null'
-
-
-
