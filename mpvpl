@@ -30,14 +30,14 @@ tvprog() {
     (input | .tv) as $tv
     | (input | .[]) as $channel
     | first($tv.channel[]
-    | select(.["display-name"][]
+      | select(.["display-name"][]
         | [if type == "object" then .["#text"] end]
         | any(. == $channel))
-    | {name: $channel, id: .["@id"]})
+      | {name: $channel, id: .["@id"]})
     | . as $ch
-    | [$ch.name, ($tv.programme[]
-        | select(.["@channel"] == $ch.id and .["@stop"] >= (now | strflocaltime("%Y%m%d%H%M%S %z")))
-        | [(.title | if type == "object" then .["#text"] end), (.["@start"] | strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M"))])][:3]
+    | [$ch.name, limit(2; ($tv.programme[]
+      | select(.["@channel"] == $ch.id and .["@stop"] >= (now | strflocaltime("%Y%m%d%H%M%S %z")))
+      | [(.title | if type == "object" then .["#text"] end), (.["@start"] | strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M"))]))]
     | .[1][1] |= empty | flatten | @tsv'
 
     jq -nr "$query_tvprogs" "$epg" <(channels_in_playlist) | sort -bk1,1 -t $'\t'
