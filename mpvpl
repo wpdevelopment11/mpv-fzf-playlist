@@ -40,7 +40,7 @@ tvprog() {
       | [(.title | if type == "object" then .["#text"] end), (.["@start"] | strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M"))]))]
     | .[1][1] |= empty | flatten | @tsv'
 
-    jq -nr "$query_tvprogs" "$epg" <(channels_in_playlist) | sort -bk1,1 -t $'\t'
+    jq -nr "$query_tvprogs" <(gzip -cdf "$epg") <(channels_in_playlist) | sort -bk1,1 -t $'\t'
 }
 
 join_tvprog_and_playlist() {
@@ -59,7 +59,7 @@ fetch_url() {
 
 epg_to_json() {
     echo "Converting xmltv to json..." >&2
-    gzip -df < "$epg_temp" | xq-python --xml-force-list display-name . - > "$epg_path"
+    gzip -cdf "$epg_temp" | xq-python --xml-force-list display-name . - | gzip > "$epg_path"
 }
 
 save_result() {
@@ -80,7 +80,7 @@ handle_url() {
     trap 'rm -f $epg_temp' RETURN
 
     local epg_headers_path=$urldir/headers.json
-    local epg_path=$urldir/epg.json
+    local epg_path=$urldir/epg.json.gz
 
     local headers response_code
     if [[ ! (-f $epg_headers_path && -f $epg_path) ]]; then
