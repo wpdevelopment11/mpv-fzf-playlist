@@ -77,7 +77,7 @@ handle_url() {
 
     local epg_temp
     epg_temp=$(mktemp)
-    trap 'rm -f $epg_temp' RETURN
+    trap 'rm -f "$epg_temp"' RETURN
 
     local epg_headers_path=$urldir/headers.json
     local epg_path=$urldir/epg.json.gz
@@ -98,7 +98,7 @@ handle_url() {
         if [[ $etag ]]; then
             local etag_file
             etag_file=$(mktemp)
-            trap 'rm -f $epg_temp $etag_file' RETURN
+            trap 'rm -f "$epg_temp" "$etag_file"' RETURN
             cat <<< "$etag" > "$etag_file"
             fetch_url "--etag-compare" "$etag_file"
         elif [[ $last_modified ]]; then
