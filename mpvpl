@@ -59,11 +59,11 @@ fetch_url() {
 
 epg_to_json() {
     echo "Converting xmltv to json..." >&2
-    gzip -cdf "$epg_temp" | xq-python --xml-force-list display-name . - | gzip > "$epg_path"
+    gzip -cdf "$1" | xq-python -c --xml-force-list display-name . - | gzip > "$2"
 }
 
 save_result() {
-    epg_to_json
+    epg_to_json "$epg_temp" "$epg_path"
     cat <<< "$headers" > "$epg_headers_path"
 }
 
@@ -166,6 +166,11 @@ if [[ $epg =~ ^https?:// ]]; then
         # Can't recover from this
         exit 1
     fi
+elif [[ $epg =~ \.xml(\.gz)?$ ]]; then
+    converted=$(mktemp --suffix=.json.gz)
+    trap 'rm -f "$converted"' EXIT
+    epg_to_json "$epg" "$converted"
+    epg=$converted
 fi
 
 playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
