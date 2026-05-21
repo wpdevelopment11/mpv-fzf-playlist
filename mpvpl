@@ -70,7 +70,7 @@ epg_to_json() {
     echo "Converting xmltv to json..." >&2
     # shellcheck disable=SC2016
     conv_query='(now | strflocaltime("%Y%m%d%H%M%S %z")) as $now | .tv.channel[],null,([.tv.programme[] | select(.["@stop"] >= $now)] | sort_by(.["@channel"], .["@stop"]) | .[])'
-    gzip -cdf "$1" | xq-python -c --xml-force-list display-name "$conv_query" - | gzip > "$2"
+    gzip -cdf "$1" | "$xq" -c --xml-force-list display-name "$conv_query" - | gzip > "$2"
 }
 
 save_result() {
@@ -161,6 +161,15 @@ elif [[ $# -eq 1 ]]; then
     epg=$1
 elif [[ $# -ne 0 ]]; then
     print_usage
+    exit 1
+fi
+
+if command -v xq &> /dev/null; then
+    xq=xq
+elif command -v xq-python &> /dev/null; then
+    xq=xq-python
+else
+    echo 'xq is not found in the PATH' >&2
     exit 1
 fi
 
