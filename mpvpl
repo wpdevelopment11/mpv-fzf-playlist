@@ -23,21 +23,23 @@ channels_in_playlist() {
 
 tvprog() {
     # shellcheck disable=SC2016
-    query_tvprogs='
-    (input | .tv) as $tv
-    | (input | .[]) as $channel
-    | first($tv.channel[]
-      | select(.["display-name"][]
-        | [if type == "object" then .["#text"] end]
-        | any(. == $channel))
-      | {name: $channel, id: .["@id"]})
-    | . as $ch
-    | [$ch.name, limit(2; ($tv.programme[]
-      | select(.["@channel"] == $ch.id and .["@stop"] >= (now | strflocaltime("%Y%m%d%H%M%S %z")))
-      | [(.title | if type == "object" then .["#text"] end), (.["@start"] | strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M"))]))]
-    | .[1][1] |= empty | flatten | @tsv'
+    local epg_query='
+    ([label $stop | inputs
+      | if .["@id"] != null then
+          .["display-name"][] as $display_name | $playlist_channels[0][] as $name | select(($display_name | if type == "object" then $display_name.["#text"] end) == $name) | {key: .["@id"], value: $name}
+        else
+          break $stop
+        end
+    ] | from_entries) as $channels | (now | strflocaltime("%Y%m%d%H%M%S %z")) as $now | label $stop2 | reduce inputs as $program ({};
+        $program.["@channel"] as $channel | if (. | length) == ($channels | length) then
+            .
+        elif ($channels | has($channel)) and (. | has($channel) | not) and ($program.["@stop"] >= $now) then
+            .[$channel] |= [$channels[$channel], $program, input]
+        else
+            .
+        end) | .[] | [.[0], (.[1,2].title | if type == "object" then .["#text"] end), (.[2]["@start"] | (if . != null then strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M") end))] | @tsv'
 
-    jq -nr "$query_tvprogs" <(gzip -cdf "$epg") <(channels_in_playlist) | sort -bk1,1 -t $'\t'
+    jq -nr --slurpfile playlist_channels <(channels_in_playlist) "$epg_query" <(gzip -cdf "$epg") | sort -bk1,1 -t $'\t'
 }
 
 join_tvprog_and_playlist() {
@@ -66,7 +68,9 @@ fetch_url() {
 
 epg_to_json() {
     echo "Converting xmltv to json..." >&2
-    gzip -cdf "$1" | xq-python -c --xml-force-list display-name . - | gzip > "$2"
+    # shellcheck disable=SC2016
+    conv_query='(now | strflocaltime("%Y%m%d%H%M%S %z")) as $now | .tv.channel[],null,([.tv.programme[] | select(.["@stop"] >= $now)] | sort_by(.["@channel"], .["@stop"]) | .[])'
+    gzip -cdf "$1" | xq-python -c --xml-force-list display-name "$conv_query" - | gzip > "$2"
 }
 
 save_result() {
