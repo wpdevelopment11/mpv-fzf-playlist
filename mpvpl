@@ -125,19 +125,16 @@ handle_url() {
 
 print_usage() {
 cat >&2 <<END
-Jump between mpv playlist entries using fzf.
+Switch between mpv playlist entries using fzf.
 
-You can optionally pass an epg in xmltv format to see the current tv programs.
+You can optionally pass EPG in XMLTV format to see the current TV programs.
 
-Usage: $myname
-       $myname https://example.com/epg.xml.gz
-       $myname /path/to/epg.json
+Usage: ${0##*/} [ EPG_URL | EPG_PATH ]
 END
 }
 
 cache_dir=${XDG_CACHE_HOME:-~/.cache}/mpv-fzf-playlist
 mpvsocket=${IPC_SOCKET:-/tmp/mpvsocket}
-myname=${0##*/}
 
 reload=""
 epg=""
