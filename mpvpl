@@ -22,9 +22,6 @@ channels_in_playlist() {
 }
 
 tvprog() {
-    if [[ -z $epg ]]; then
-        return
-    fi
     # shellcheck disable=SC2016
     query_tvprogs='
     (input | .tv) as $tv
@@ -45,7 +42,17 @@ tvprog() {
 
 join_tvprog_and_playlist() {
     join -a 1 -1 2 -t $'\t' <(playlist) <(tvprog) \
-        | awk -F'\t' 'BEGIN{OFS="\t"} {tmp=$1; $1=$2; $2=tmp; print}' | column -t -s $'\t'
+        | awk -F'\t' 'BEGIN{OFS="\t"} {tmp=$1; $1=$2; $2=tmp; print}'
+}
+
+playlist_table() {
+    if [[ -z $epg ]]; then
+        echo $'ID\tTitle\tFilename'
+        playlist
+    else
+        echo $'ID\tChannel\tCurrent program\tNext program\tStart'
+        join_tvprog_and_playlist
+    fi | column -t -s $'\t'
 }
 
 fetch_url() {
@@ -183,10 +190,10 @@ if [[ $err != "success" ]]; then
 fi
 
 if [[ $reload ]]; then
-    join_tvprog_and_playlist
+    playlist_table
     exit
 fi
 
-fzf --layout=reverse-list --with-nth=2.. \
+fzf --layout=reverse-list --with-nth=2.. --header-lines=1 \
     --bind "start,ctrl-r:reload:${0@Q} reload ${epg@Q}"  \
     --bind 'enter:execute-silent:socat - '"$mpvsocket"' <<< "{ \"command\": [\"playlist-play-index\", "{1}"] }" > /dev/null'
