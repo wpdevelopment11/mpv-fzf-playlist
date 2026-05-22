@@ -206,6 +206,6 @@ if [[ $reload ]]; then
     exit
 fi
 
-fzf --layout=reverse-list --with-nth=2.. --header-lines=1 \
+fzf --layout=reverse-list --with-nth=2.. --header-lines=1 --cycle \
     --bind "start,ctrl-r:reload:${0@Q} reload ${epg@Q}"  \
     --bind 'enter:execute-silent:socat - '"$mpvsocket"' <<< "{ \"command\": [\"playlist-play-index\", "{1}"] }" > /dev/null'
