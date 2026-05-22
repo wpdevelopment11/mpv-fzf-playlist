@@ -69,8 +69,6 @@ gzip -cd xmltv.xml.gz  | xq -c --xml-force-list display-name '(now | strflocalti
 ```
 The conversion can be time consuming and memory hungry for large files.
 
----
-
 </details>
 
 <br>
@@ -84,6 +82,8 @@ mpvpl /path/to/xmltv.json.gz
 ```
 
 ## Watch a demo
+
+<video src="https://github.com/user-attachments/assets/798977d4-4ec0-4cff-ad72-8da7e3079540"></video>
 
 ## Limitations
 
