@@ -49,7 +49,7 @@ join_tvprog_and_playlist() {
 
 playlist_table() {
     if [[ -z $epg ]]; then
-        echo $'ID\tTitle\tFilename'
+        echo $'ID\tTitle\tPath'
         playlist
     else
         echo $'ID\tChannel\tCurrent program\tNext program\tStart'
