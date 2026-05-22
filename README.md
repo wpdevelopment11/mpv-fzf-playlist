@@ -31,7 +31,7 @@ Tested only on Linux.
   * [`fzf`](https://github.com/junegunn/fzf)
   * [`jq`]
   * `socat`
-  * [`xq`](https://github.com/kislyuk/yq#xml-support) (`xq-python` on Debian/Ubuntu)
+  * If you want to use the EPG feature: [`xq`](https://github.com/kislyuk/yq#xml-support) (`xq-python` on Debian/Ubuntu)
 
 ## Usage
 

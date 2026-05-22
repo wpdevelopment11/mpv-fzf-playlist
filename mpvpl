@@ -163,13 +163,15 @@ elif [[ $# -ne 0 ]]; then
     exit 1
 fi
 
-if command -v xq &> /dev/null; then
-    xq=xq
-elif command -v xq-python &> /dev/null; then
-    xq='xq-python'
-else
-    echo 'xq is not found in the PATH' >&2
-    exit 1
+if [[ -n $epg ]]; then
+    if command -v xq &> /dev/null; then
+        xq=xq
+    elif command -v xq-python &> /dev/null; then
+        xq='xq-python'
+    else
+        echo 'xq is not found in the PATH' >&2
+        exit 1
+    fi
 fi
 
 if [[ $epg =~ ^https?:// ]]; then
