@@ -105,7 +105,6 @@ handle_url() {
         local etag last_modified
         etag=$(jq -r '.etag[0] // ""' "$epg_headers_path")
         last_modified=$(jq -r '.["last-modified"][0] // ""' "$epg_headers_path")
-        echo "Trying to update the epg..." >&2
         if [[ $etag ]]; then
             local etag_file
             etag_file=$(mktemp)
@@ -193,7 +192,7 @@ fi
 playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
 # shellcheck disable=SC2181
 if [[ $? -ne 0 ]]; then
-    echo "Can't connect to mpv" >&2
+    echo "Can't connect to mpv. You run mpv with the --input-ipc-server option set. Right?" >&2
     exit 1
 fi
 err=$(jq -r .error <<< "$playlist")
