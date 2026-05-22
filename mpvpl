@@ -9,7 +9,7 @@
 playlist() {
     local playlist_query
     if [[ -z $epg ]]; then
-        playlist_query='.data | to_entries[] | [.key, .value.title, .value.filename] | map(values) | @tsv'
+        playlist_query='.data | to_entries[] | [.key, .value.title // (.value.filename | split("/")[-1] | split(".") | if length > 1 then .[0:-1] end | join(".")), .value.filename] | map(values) | @tsv'
     else
         # Don't show an entry filename with an epg, it will clutter the output
         playlist_query='.data | to_entries[] |  [.key, .value.title // ("Error! Entry title is empty.", .value.filename)] | @tsv'
