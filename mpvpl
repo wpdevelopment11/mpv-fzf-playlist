@@ -119,11 +119,10 @@ handle_url() {
             fetch_url
         fi
 
+        fetch_status=$?
         epg=$epg_path
 
-        # shellcheck disable=SC2181
-        if [[ $? -ne 0 ]]; then
-            # error in fetch_url
+        if [[ $fetch_status -ne 0 ]]; then
             return 1
         fi
 
