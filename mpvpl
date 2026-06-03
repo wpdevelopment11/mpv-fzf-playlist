@@ -87,8 +87,7 @@ handle_url() {
     mkdir -p "$urldir"
 
     local epg_temp
-    epg_temp=$(mktemp)
-    trap 'rm -f "$epg_temp"' RETURN
+    epg_temp=$(mktemp -p "$tmp_dir")
 
     local epg_headers_path=$urldir/headers.json
     local epg_path=$urldir/epg.json.gz
@@ -107,8 +106,7 @@ handle_url() {
         last_modified=$(jq -r '.["last-modified"][0] // ""' "$epg_headers_path")
         if [[ $etag ]]; then
             local etag_file
-            etag_file=$(mktemp)
-            trap 'rm -f "$epg_temp" "$etag_file"' RETURN
+            etag_file=$(mktemp -p "$tmp_dir")
             cat <<< "$etag" > "$etag_file"
             fetch_url "--etag-compare" "$etag_file"
         elif [[ $last_modified ]]; then
@@ -173,6 +171,9 @@ if [[ -n $epg ]]; then
     fi
 fi
 
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
 if [[ $epg =~ ^https?:// ]]; then
     handle_url "$epg"
     status=$?
@@ -184,8 +185,7 @@ if [[ $epg =~ ^https?:// ]]; then
         exit 1
     fi
 elif [[ $epg =~ \.xml(\.gz)?$ ]]; then
-    converted=$(mktemp --suffix=.json.gz)
-    trap 'rm -f "$converted"' EXIT
+    converted=$(mktemp -p "$tmp_dir" --suffix=.json.gz)
     epg_to_json "$epg" "$converted"
     epg=$converted
 fi
