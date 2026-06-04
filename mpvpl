@@ -30,14 +30,14 @@ tvprog() {
         else
           break $stop
         end
-    ] | from_entries) as $channels | (now | strflocaltime("%Y%m%d%H%M%S %z")) as $now | label $stop2 | reduce inputs as $program ({};
+    ] | from_entries) as $channels | now as $now | label $stop2 | reduce inputs as $program ({};
         $program.["@channel"] as $channel | if (. | length) == ($channels | length) then
             .
         elif ($channels | has($channel)) and (. | has($channel) | not) and ($program.["@stop"] >= $now) then
             .[$channel] |= [$channels[$channel], $program, input]
         else
             .
-        end) | .[] | [.[0], (.[1,2].title | if type == "object" then .["#text"] end), (.[2]["@start"] | (if . != null then strptime("%Y%m%d%H%M%S %z") | mktime | strftime("%H:%M") end))] | @tsv'
+        end) | .[] | [.[0], (.[1,2].title | if type == "object" then .["#text"] end), (.[2]["@start"] | (if . != null then strflocaltime("%H:%M") end))] | @tsv'
 
     jq -nr --slurpfile playlist_channels <(channels_in_playlist) "$epg_query" <(gzip -cdf "$epg") | sort -bk1,1 -t $'\t'
 }
@@ -69,7 +69,8 @@ fetch_url() {
 epg_to_json() {
     echo "Converting xmltv to json..." >&2
     # shellcheck disable=SC2016
-    conv_query='(now | strflocaltime("%Y%m%d%H%M%S %z")) as $now | .tv.channel[],null,([.tv.programme[] | select(.["@stop"] >= $now)] | sort_by(.["@channel"], .["@stop"]) | .[])'
+    conv_query='now as $now
+    | .tv.channel[],null,([.tv.programme[] | (.["@start"], .["@stop"]) |= (. as $time | [if .[-5:-4] == "-" then 1 else -1 end, .[-4:-2], .[-2:] | tonumber] | ($time | strptime("%Y%m%d%H%M%S %z") | mktime) + (.[0] * (.[1] * 3600 + .[2] * 60))) | select(.["@stop"] >= $now)] | sort_by(.["@channel"], .["@stop"]) | .[])'
     gzip -cdf "$1" | "$xq" -c --xml-force-list display-name "$conv_query" - | gzip > "$2"
 }
 

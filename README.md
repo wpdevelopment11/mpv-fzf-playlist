@@ -43,42 +43,27 @@ To see the current playlist and switch playlist entries, run the following:
 mpvpl
 ```
 
-If you are watching IPTV you can pass EPG in XMLTV format to see
+If you are watching IPTV you can pass an EPG in XMLTV format to see
 the current and the next TV program:
 
-> The names of channels in your playlist and in an XMLTV file must match.
+> The names of channels in your playlist and in the XMLTV file must match.
 > Otherwise, TV programs will not be listed.
 
 ```
 mpvpl https://example.com/xmltv.xml.gz
 ```
 
-You can press <kbd>Ctrl</kbd>+<kbd>R</kbd> to reload a playlist and programs.
+> You can press <kbd>Ctrl</kbd>+<kbd>R</kbd> to reload mpv playlist (and programs if you are using XMLTV).
 
 The provided URL will be cached, and will be downloaded again only if it's changed on a server.
 
 Internally, an `xml.gz` file will be converted to `json.gz` to make it possible to query
 it using [`jq`].
 
-<details>
-
-<summary>You can convert an XMLTV file with the `xml.gz` extension to `json.gz` using the following command:</summary>
-
-```
-gzip -cd xmltv.xml.gz  | xq -c --xml-force-list display-name '(now | strflocaltime("%Y%m%d%H%M%S %z")) as $now | .tv.channel[],null,([.tv.programme[] | select(.["@stop"] >= $now)] | sort_by(.["@channel"], .["@stop"]) | .[])' - | gzip > xmltv.json.gz
-```
-The conversion can be time consuming and memory hungry for large files.
-
-</details>
-
-<br>
-
-You can provide a path to the local XMLTV file:
+You can provide a path to the local XMLTV file (but this is not recommended and only useful for testing):
 
 ```
 mpvpl /path/to/xmltv.xml.gz
-# Path to a JSON file converted using the xq command above
-mpvpl /path/to/xmltv.json.gz
 ```
 
 ## Watch a demo
@@ -87,8 +72,6 @@ mpvpl /path/to/xmltv.json.gz
 
 ## Limitations
 
-* Timezone of _start_ and _stop_ time of TV programs is ignored.
-  It's assumed that dates in the XMLTV file are in the local timezone.
 * Conversion from XML to JSON is needed to be able to query TV programs using [`jq`]. It may take a lot of time depending on the EPG size, but it's done only once
   for each URL.
 
