@@ -113,8 +113,8 @@ handle_url() {
         elif [[ $last_modified ]]; then
             fetch_url "--time-cond" "$last_modified"
         else
-            # etag and the last-modified time is not known,
-            # gave up and download the epg again
+            # ETag and the Last-Modified time are not known,
+            # give up and download the EPG again
             fetch_url
         fi
 
@@ -167,7 +167,7 @@ if [[ -n $epg ]]; then
     elif command -v xq-python &> /dev/null; then
         xq='xq-python'
     else
-        echo 'xq is not found in the PATH' >&2
+        echo 'xq was not found in the PATH' >&2
         exit 1
     fi
 fi
@@ -194,7 +194,7 @@ fi
 playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
 # shellcheck disable=SC2181
 if [[ $? -ne 0 ]]; then
-    echo "Can't connect to mpv. You run mpv with the --input-ipc-server option set. Right?" >&2
+    echo "Can't connect to mpv. You ran mpv with the --input-ipc-server option set, right?" >&2
     exit 1
 fi
 err=$(jq -r .error <<< "$playlist")
@@ -211,3 +211,4 @@ fi
 fzf --layout=reverse-list --with-nth=2.. --header-lines=1 --cycle \
     --bind "start,ctrl-r:reload:${0@Q} reload ${epg@Q}"  \
     --bind 'enter:execute-silent:socat - '"$mpvsocket"' <<< "{ \"command\": [\"playlist-play-index\", "{1}"] }" > /dev/null'
+
