@@ -6,7 +6,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-playlist() {
+playlist_entries() {
     local playlist_query
     if [[ -z $epg ]]; then
         playlist_query='.data | to_entries[] | [.key, .value.title // (.value.filename | split("/")[-1] | split(".") | if length > 1 then .[0:-1] end | join(".")), .value.filename] | map(values) | @tsv'
@@ -14,7 +14,7 @@ playlist() {
         # Don't show an entry filename with an epg, it will clutter the output
         playlist_query='.data | to_entries[] |  [.key, .value.title // ("Error! Entry title is empty.", .value.filename)] | @tsv'
     fi
-    jq -r "$playlist_query" <<< "$playlist" | sort -bk2,2 -t $'\t'
+    jq -r "$playlist_query" <<< "$playlist"
 }
 
 channels_in_playlist() {
@@ -43,14 +43,15 @@ tvprog() {
 }
 
 join_tvprog_and_playlist() {
-    join -a 1 -1 2 -t $'\t' <(playlist) <(tvprog) \
-        | awk -F'\t' 'BEGIN{OFS="\t"} {tmp=$1; $1=$2; $2=tmp; print}'
+    join -a 1 -1 2 -t $'\t' <(playlist_entries | sort -bk2,2 -t $'\t') <(tvprog) \
+        | awk -F'\t' 'BEGIN{OFS="\t"} {tmp=$1; $1=$2; $2=tmp; print}' \
+        | sort -n -bk1,1 -t $'\t'
 }
 
 playlist_table() {
     if [[ -z $epg ]]; then
         echo $'ID\tTitle\tPath'
-        playlist
+        playlist_entries
     else
         echo $'ID\tChannel\tCurrent program\tNext program\tStart'
         join_tvprog_and_playlist
