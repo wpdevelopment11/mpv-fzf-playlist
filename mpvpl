@@ -103,6 +103,10 @@ handle_url() {
         epg=$epg_path
     else
         # Check for updates for an already existing epg
+        if [[ $nodownload ]]; then
+            epg=$epg_path
+            return 0
+        fi
         local etag last_modified
         etag=$(jq -r '.etag[0] // ""' "$epg_headers_path")
         last_modified=$(jq -r '.["last-modified"][0] // ""' "$epg_headers_path")
@@ -145,17 +149,26 @@ END
 cache_dir=${XDG_CACHE_HOME:-~/.cache}/mpv-fzf-playlist
 mpvsocket=${IPC_SOCKET:-/tmp/mpvsocket}
 
+nodownload=""
 reload=""
 epg=""
+
 if [[ $# -eq 1 && ($1 == "--help" || $1 == "-h") ]]; then
     print_usage
     exit
-elif [[ $# -ge 1 && $1 == "reload" ]]; then
+fi
+
+if [[ $# -ge 1 && ($1 == "--nodownload" || $1 == "-D") ]]; then
+    nodownload=yes
+    shift
+fi
+
+if [[ $# -ge 1 && $1 == "reload" ]]; then
     reload=yes
-    if [[ $# -gt 1 ]]; then
-        epg=$2
-    fi
-elif [[ $# -eq 1 ]]; then
+    shift
+fi
+
+if [[ $# -eq 1 ]]; then
     epg=$1
 elif [[ $# -ne 0 ]]; then
     print_usage
@@ -171,6 +184,23 @@ if [[ -n $epg ]]; then
         echo 'xq was not found in the PATH' >&2
         exit 1
     fi
+fi
+
+playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
+# shellcheck disable=SC2181
+if [[ $? -ne 0 ]]; then
+    echo "Can't connect to mpv. You ran mpv with the --input-ipc-server option set, right?" >&2
+    exit 1
+fi
+err=$(jq -r .error <<< "$playlist")
+if [[ $err != "success" ]]; then
+    [[ "$err" ]] && echo "mpv error: $err" >&2
+    exit 1
+fi
+
+if [[ $reload ]]; then
+    playlist_table
+    exit
 fi
 
 tmp_dir=$(mktemp -d)
@@ -190,23 +220,6 @@ elif [[ $epg =~ \.xml(\.gz)?$ ]]; then
     converted=$(mktemp -p "$tmp_dir" --suffix=.json.gz)
     epg_to_json "$epg" "$converted"
     epg=$converted
-fi
-
-playlist=$(socat - "$mpvsocket" <<< '{"command": ["get_property", "playlist"]}')
-# shellcheck disable=SC2181
-if [[ $? -ne 0 ]]; then
-    echo "Can't connect to mpv. You ran mpv with the --input-ipc-server option set, right?" >&2
-    exit 1
-fi
-err=$(jq -r .error <<< "$playlist")
-if [[ $err != "success" ]]; then
-    [[ "$err" ]] && echo "mpv error: $err" >&2
-    exit 1
-fi
-
-if [[ $reload ]]; then
-    playlist_table
-    exit
 fi
 
 fzf --layout=reverse-list --with-nth=2.. --header-lines=1 --cycle \
