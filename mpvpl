@@ -158,9 +158,13 @@ print_usage() {
 cat >&2 <<END
 Switch between mpv playlist entries using fzf.
 
-You can optionally pass EPG in XMLTV format to see the current TV programs.
+You can optionally pass an EPG in XMLTV format to see the current TV programs.
 
-Usage: ${0##*/} [ EPG_URL | EPG_PATH ]
+Usage: ${0##*/} [OPTIONS] [ EPG_URL | EPG_PATH ]
+
+Options:
+  -h, --help        Show this help message
+  -D, --nodownload  If an update is available for EPG, skip it
 END
 }
 
