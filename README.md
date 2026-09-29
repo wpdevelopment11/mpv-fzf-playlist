@@ -8,14 +8,8 @@ the title of the current TV program and the title and start time of the next one
 
 Tested only on Linux.
 
-## Screenshots
-
 <p align="center">
-    <img src="screenshot_iptv.png" alt="screenshot of a playlist with TV listings" />
-</p>
-
-<p align="center">
-    <img src="screenshot.png" alt="screenshot of mpv playlist loaded into fzf" />
+    <img src="demo.gif" alt="a playlist with TV listings" />
 </p>
 
 ## Requirements
